@@ -1,9 +1,9 @@
 
 exports.Hangman = function(dictionary) {
     this.uuid = require('node-uuid');
-    this.gameState = "notStarted";
+    this.gameState = "collectingAttendees";
+    this.numberOfPeople = 0;
     this.people = {};
-    this.dictionary = dictionary;
 };
 
 exports.Hangman.prototype = {
@@ -19,51 +19,63 @@ exports.Hangman.prototype = {
         }
     },
 
-    getGameState: function (token) {
-        if (this.gameState == "notStarted") {
-            return {state:this.gameState, actions:['Join']};
-        } else if (this.gameState == 'collectingAttendees') {
-            var me = this;
-            var joinAllowed = function() {
+    getGameState:function (token) {
+        var me = this,
+            joinAllowed = function () {
                 return {state:me.gameState, actions:['Join']};
-            };
-            return this.withTokenValidation(token, function() {
-                return {state:me.gameState, actions:['Start Game']};
-            }, function() {
+            },
+            invalidToken = function () {
                 var response = joinAllowed();
                 response.error = "Player token not recognized";
                 return response;
-            }, joinAllowed);
+            };
+
+        if (this.gameState == 'collectingAttendees') {
+            return this.withTokenValidation(token, function () {
+                return {state:me.gameState, actions:[]};
+            }, invalidToken, joinAllowed);
+        } else if (this.gameState == 'readyToStart') {
+
         }
         return {};
     },
 
     submitEvent: function(params) {
-        var action = params.action;
-        if (this.gameState == 'notStarted' || this.gameState == 'collectingAttendees') {
+        var uuid, invalid, result,
+            response = {actions: []},
+            action = params.action;
+        if (this.gameState == 'collectingAttendees') {
             if (action == 'Join') {
-                this.gameState = 'collectingAttendees';
-                var uuid = this.uuid.v4();
+                uuid = this.uuid.v4();
+                response.token = uuid;
                 this.people[uuid] = params.name;
-                return {state:this.gameState, actions:['Start Game'], token:uuid};
+                this.numberOfPeople++;
+
+                if (this.numberOfPeople == 2) {
+                    this.gameState = "readyToStart";
+                    response.actions.push("Start Game");
+                }
             } else if (action == 'Start Game') {
-                var invalid = function() { return {started: false, error: "Only existing current players can start the game"}; };
-                var result = this.withTokenValidation(params.token,
+                invalid = function() { return {started: false, error: "Only existing current players can start the game"}; };
+                result = this.withTokenValidation(params.token,
                     function () {
                         return {started:true};
                     }, invalid, invalid);
-                var response = {};
                 if (result.started) {
-                    response.actions = ['Guess'];
+                    response.actions.push('Guess');
                     this.gameState = 'started';
                 } else {
-                    response.actions = ['Join'];
+                    response.actions.push('Join');
                     response.error = result.error;
                 }
-                response.state = this.gameState;
-                return response;
+            }
+        } else if (this.gameState == "readyToStart") {
+            if (action == "Join") {
+                response.error = "This game already has two players - no more can join";
             }
         }
+        response.state = this.gameState;
+        return response;
     }
 };
 
