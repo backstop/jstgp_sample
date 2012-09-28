@@ -19,10 +19,10 @@ exports.Hangman.prototype = {
         }
     },
 
-    getGameState:function (token) {
+    getGameState: function (token) {
         var me = this,
             joinAllowed = function () {
-                return {state:me.gameState, actions:['Join']};
+                return {state: me.gameState, actions: ['Join']};
             },
             invalidToken = function () {
                 var response = joinAllowed();
@@ -35,7 +35,9 @@ exports.Hangman.prototype = {
                 return {state:me.gameState, actions:[]};
             }, invalidToken, joinAllowed);
         } else if (this.gameState == 'readyToStart') {
-
+            return this.withTokenValidation(token, function () {
+                return {state:me.gameState, actions:['Start Game']};
+            }, invalidToken, joinAllowed);
         }
         return {};
     },
@@ -55,23 +57,22 @@ exports.Hangman.prototype = {
                     this.gameState = "readyToStart";
                     response.actions.push("Start Game");
                 }
+            }
+        } else if (this.gameState == "readyToStart") {
+            if (action == "Join") {
+                response.error = "This game already has two players - no more can join";
             } else if (action == 'Start Game') {
                 invalid = function() { return {started: false, error: "Only existing current players can start the game"}; };
                 result = this.withTokenValidation(params.token,
                     function () {
                         return {started:true};
                     }, invalid, invalid);
+
                 if (result.started) {
-                    response.actions.push('Guess');
-                    this.gameState = 'started';
+                    this.gameState = 'guessing';
                 } else {
-                    response.actions.push('Join');
                     response.error = result.error;
                 }
-            }
-        } else if (this.gameState == "readyToStart") {
-            if (action == "Join") {
-                response.error = "This game already has two players - no more can join";
             }
         }
         response.state = this.gameState;

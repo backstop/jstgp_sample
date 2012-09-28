@@ -43,19 +43,24 @@ vows.describe('The Game Engine').addBatch({
             var result;
             assert.deepEqual(game.getGameState(playerOneToken), {state: 'readyToStart', actions: ['Start Game']});
             result = game.submitEvent({action: 'Start Game'});
-            assert.equal(result.state, "collectingAttendees");
-            assert.equal(result.actions[0], "Join");
+            assert.equal(result.state, "readyToStart");
+            assert.equal(result.actions.length, 0);
             assert.equal(result.error, "Only existing current players can start the game");
 
             result = game.submitEvent({action: 'Start Game', token: "invalidtoken"});
-            assert.equal(result.state, "collectingAttendees");
-            assert.equal(result.actions[0], "Join");
+            assert.equal(result.state, "readyToStart");
+            assert.equal(result.actions.length, 0);
             assert.equal(result.error, "Only existing current players can start the game");
 
-            result = game.submitEvent({action: 'Start Game', token: playerOneToken});
-            assert.equal(result.state, "acceptingGuesses");
-            assert.equal(result.actions[0], "Guess");
-            assert.equal(result.error, "Only existing current players can start the game");
+            result = game.submitEvent({action: 'Start Game', word: 'hangman', token: playerOneToken});
+            assert.equal(result.state, "guessing");
+            assert.equal(result.actions.length, 0);
+        },
+
+        "should accept guesses from valid users in the correct order": function(game) {
+            var result;
+            assert.deepEqual(game.getGameState(playerOneToken), {state: "guessing", actions: ['Guess']});
+            assert.deepEqual(game.getGameState(playerTwoToken), {state: "guessing", actions: []});
         }
 }
 }).export(module);
